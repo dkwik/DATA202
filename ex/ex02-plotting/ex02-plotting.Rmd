@@ -1,0 +1,72 @@
+---
+title: "Exercise 2:Plotting"
+author: "Daniel Kwik"
+output:
+  prettydoc::html_pretty
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+library(scales)
+library(gapminder)
+```
+
+```{r health-and-wealth}
+# start with data from the Gapminder package
+gapminder %>%
+  # include only rows where...
+  filter(year == 2007) %>% 
+  #create a plot
+  ggplot() +
+    # assigns the x axis and y axis to variables 
+    aes(x=gdpPercap, y = lifeExp) +
+    # plots the data and assigns transparency of 0.6
+    geom_point(alpha = 0.6) +
+    # sets the upper and lower limit to the y axis 
+    coord_cartesian(ylim = c(20, 90)) +
+    # colors the datapoints based on continent
+    aes(color = continent) +
+    # changes the size of the datapoints based on population size
+    aes(size = pop) +
+    # sets the x-axis to a logarithmic scale with a log10 base
+    scale_x_continuous(breaks = c(400, 4000, 40000), trans = "log10") +
+    # changes label of the x and y axis
+    labs(x = "GDP per Capita", y = "Life Expectancy (years)") +
+    #changes the label of the legends
+    labs(color = "Continent", size = "Population") +
+    #changes the legend labels to include a comma
+    scale_size_area(labels = label_comma()) +
+    #changes the them to black  
+    theme_bw() +
+    #adds log ticks with diminishing spacing to x axis.
+    annotation_logticks(sides = "b")
+    
+```
+
+
+```{r part 2}
+# start with data from the Gapminder package
+gapminder %>%
+  # include only rows where...
+  filter(year == 1997) %>% 
+  #create a plot
+  ggplot() +
+    # assigns the x axis and y axis to variables 
+    aes(x=gdpPercap, y = lifeExp, color = continent, size = pop) +
+    # plots the data and assigns transparency of 0.6
+    geom_point(alpha = 0.6) +
+    # sets the upper and lower limit to the y axis 
+    coord_cartesian(ylim = c(20, 90)) +
+    # sets the x-axis to a logarithmic scale with a log10 base
+    scale_x_continuous(breaks = c(400, 4000, 40000), trans = "log10", labels = label_comma()) +
+    # changes label of the x and y axis
+    labs(x = "GDP per Capita", y = "Life Expectancy (years)", color = "Continent", size = "Population") +
+    #changes the legend labels to include a comma
+    scale_size_area(labels = label_comma()) +
+    #changes the them to black  
+    theme_minimal() +
+    #adds log ticks with diminishing spacing to x axis.
+    annotation_logticks(sides = "b")
+    
+```
+  

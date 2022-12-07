@@ -1,0 +1,85 @@
+---
+title: "ex13-text"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Seperate
+```{r}
+
+#Read in macbeth into a dataframe
+library(tidyverse)
+macbeth_url <- "http://www.gutenberg.org/cache/epub/1129/pg1129.txt"
+#macbeth_raw <- read_file(macbeth_url)
+data(Macbeth_raw, package = "mdsr")
+
+```
+```{r}
+#Parse lines into separate rows
+macbeth <- Macbeth_raw %>% 
+  stringi::stri_split_lines() %>%
+  pluck(1)
+length(macbeth)
+head(macbeth)
+```
+
+
+```{r}
+pattern <- "MACBETH"
+macbeth %>% str_detect(pattern) %>% sum()
+
+macbeth %>% str_subset(pattern) %>% head()
+```
+How many lines contain “MACBETH”? - 208
+How many lines contain “MACDUFF”?
+```{r}
+pattern2 <- "MACDUFF"
+macbeth %>% str_detect(pattern2) %>% sum()
+```
+ans: 80
+
+### Regex Patterns
+#### Anything
+```{r}
+pattern <- "MAC."
+#Show lines that contain "MAC."
+macbeth %>% str_subset(pattern) %>% head()
+
+#Show matches of "MAC."
+macbeth %>% str_subset(pattern) %>% str_extract(pattern) %>% head()
+```
+#### Character Sets
+```{r}
+pattern <- "MAC[BD]"
+macbeth %>% str_subset(pattern) %>% head()
+
+
+pattern <- "MAC[D-H]"
+macbeth %>% str_subset(pattern) %>% head()
+```
+Other useful regex syntax:
+
+- `\d` matches a digit"
+- `\s` matches a whitespace character (space, newline, etc.)"
+- `[^a-c]` matches any character except a, b, or c. "
+
+#### How many times does i follow e
+```{r}
+#how many times does I folow e in the play
+
+pattern <- "ie"
+macbeth %>% str_detect(pattern) %>% sum()
+```
+#### Anchors
+```{r}
+macbeth %>% str_subset("^ +L") 
+```
+Which of the following strings will match this expression: ^la{2,3}
+```{r}
+la <- c("", "la", "laa", "lala", "lalala", "lalalala")
+la %>% str_subset("^(la){2,3}$")
+```
+

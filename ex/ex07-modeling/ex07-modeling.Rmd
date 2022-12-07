@@ -1,0 +1,97 @@
+---
+title: "Guided Exercise 7 - Modeling"
+author: "Daniel Kwik"
+output: prettydoc::html_pretty
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+library(tidyverse)
+library(tidymodels)
+theme_set(theme_bw())
+```
+
+
+```{r load-and-subset-data}
+# Get the data from the "modeldata" package, which comes with tidymodels.
+data(ames, package = "modeldata")
+ames <- ames %>% 
+  filter(Gr_Liv_Area < 4000, Sale_Condition == "Normal") %>% 
+  mutate(Sale_Price = Sale_Price / 1000)
+```
+
+## Exercise 1
+We are working with `r count(ames)` homes.
+
+##Exercise 2
+```{r}
+
+ggplot(ames, aes(x = Gr_Liv_Area, y = Sale_Price)) +
+  geom_point(size = 0.2, alpha = 0.4) +
+  facet_wrap(vars(Bldg_Type))
+```
+## Exercise 3
+
+```{r}
+
+set.seed(1234)
+
+#Split data randomly
+
+ames_split <- initial_split(ames, prop=2/3)
+ames_train <- training(ames_split)
+ames_test <- testing(ames_split)
+
+```
+```{r}
+
+decision_tree_fit <- fit(
+  decision_tree(mode = "regression", tree_depth = 3),
+  Sale_Price ~ Gr_Liv_Area + Bldg_Type,
+  data = ames_train
+)
+
+decision_tree_fit %>% 
+  extract_fit_engine() %>% 
+  rpart.plot::rpart.plot(roundint = FALSE)
+```
+## Exercise 4
+There are 8 groups that the tree divides the data into.
+
+## Exercise 5
+```{r}
+ames_train_predictions <-
+  decision_tree_fit %>% 
+    predict(ames_train) %>% 
+    bind_cols(ames_train)
+ames_train_predictions
+
+
+```
+The model made 1608 predictions.
+
+```{r}
+ggplot(ames_train_predictions, aes(x = Sale_Price, y= Sale_Price-.pred))+
+         geom_point()
+```
+## Exercise 6
+The predictions are alright. If they were great predictions we would expect them to be close to zero, so they are off by around -100 to +100.
+
+```{r}
+ames_train_predictions %>% 
+  mutate(error = Sale_Price - .pred) %>% 
+  summarize(mean(abs(error)))
+```
+
+```{r}
+metrics <- yardstick::metric_set(rsq_trad, mae, mape, rmse)
+ames_train_predictions %>% 
+  metrics(truth = Sale_Price, estimate = .pred) %>% 
+  select(-.estimator)
+```
+## Exercise 7
+
+```{r}
+
+```
+

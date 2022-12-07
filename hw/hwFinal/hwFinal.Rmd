@@ -1,0 +1,227 @@
+---
+title: "Final Homework"
+author: "Daniel Kwik"
+output:   
+  prettydoc::html_pretty:
+    theme: architect
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(plotly)
+theme_set(theme_bw())
+```
+
+## Supervised Learning
+>Question: Build a decision tree classifier for the type of each storm in nasaweather::storms based on its wind speed and pressure. Report its accuracy.
+
+We will create a decision tree classifier to fit the model. Let's start by inspecting the dataframe and plot a scatterplot of each of the storm types.
+
+```{r}
+head(nasaweather::storms)
+storms <- nasaweather::storms
+```
+
+
+```{r}
+ggplot(data = nasaweather::storms, aes(x = pressure, y = wind)) +
+  geom_point(data = nasaweather::storms %>% select(-type), alpha = .25, color = "grey") +
+  geom_point(alpha = .25, position = position_jitter(.1), color = "green") +
+  facet_wrap(vars(type))
+```
+
+Since the data is relatively well clustered, we can fit it into a decision tree to help us classify them. We will use wind and pressure in our model.
+
+```{r}
+#Create model based on wind and pressure
+model1 <- fit(decision_tree(mode = "regression"),
+     type ~ wind + pressure,
+     data = storms)
+#fit model into a decision tree
+model1 %>% 
+  extract_fit_engine() %>% 
+  rpart.plot::rpart.plot(roundint = FALSE, digits = 2, type = 5)
+
+```
+
+
+## Clustering
+> Question Consider the 4,000 biggest cities in the world, given by:
+
+```{r}
+big_cities <- mdsr::world_cities %>% 
+  arrange(desc(population)) %>% 
+  slice_head(n = 4000)
+head(big_cities)
+```
+>Construct a k-means clustering of the latitude and longitude of these cities. Describe (qualitatively) the results of clustering with k=2.
+
+Let's start by splitting our data into our training and testing data with a 80-20 split. 
+
+```{r train-test-split}
+set.seed(12345)
+big_cities_split <- initial_split(big_cities, prop = 4/5)
+big_cities_train <- training(big_cities_split)
+big_cities_test <- testing(big_cities_split)
+
+head(big_cities_train)
+```
+
+Next, we need to isolate our latitude and longitude columns and fix their scale between 0 and 1. After that, we will run our kmeans model with 2 centers.
+```{r}
+cluster <- big_cities_train %>% 
+  select(latitude, longitude) %>% 
+  mutate(latitude = rescale(latitude, to = c(0,1))) %>% 
+  mutate(longitude = rescale(longitude, to = c(0,1)))
+head(cluster)
+
+set.seed(12345)
+clustering_results <- cluster %>% 
+  kmeans(nstart = 10, centers = 2)
+
+big_cities_clusters <- big_cities_train %>% 
+  mutate(cluster = as.factor(clustering_results$cluster))
+```
+Looking at our kmeans clustering results:
+```{r clustering results}
+glance(clustering_results)
+```
+
+```{r}
+tidy(clustering_results)
+head(big_cities_clusters)
+```
+Now that our data has been properly formatted to visualize, let's start by plotting a scatterplot.
+```{r}
+#plot scatterplot
+latlong_plot <-
+  ggplot(big_cities_clusters, aes(x = longitude, y=latitude, color = cluster))+
+  geom_point(alpha = 0.5)+
+  coord_fixed(ratio = 1)
+latlong_plot
+
+```
+But how do we know where on the globe these cities are? Let's overlay this scatterplot onto a world map using plotly.
+```{r }
+
+#overlay scatterplots over a world map using plotly
+map_plot <- plot_geo(big_cities_clusters, lat = ~latitude, lon = ~longitude, color = ~cluster) %>% 
+  add_trace(marker = list(opacity = 0.7))
+map_plot
+```
+
+
+As we can see from our map, using a k-means clustering with k=2, the plots are broken roughly into 2 clusters, one containing North America, South America, and Africa, and the other cluster containing Europe, Asia, and Australia. There is some overlap within Africa, divided into the North and South, with the North clustered with Europe, and the South clustered with the Americas.
+
+## Databases
+
+>Which baseball players have hit 500 home runs (HR) OR 3000 hits (H) but have not (yet?) been inducted into the Baseball Hall of Fame?
+
+First we will load the Lahman package
+
+```{r}
+library(Lahman)
+```
+
+Next, we will inspect the data. By looking at our dataset structures and conducting some anti-joins between tables.
+
+```{r}
+head(HallOfFame)
+head(Batting)
+head(People)
+
+Batting %>% 
+  anti_join(x=Batting, y=People, by = "playerID") %>% head()
+Batting %>% 
+  anti_join(HallOfFame, by = "playerID") %>% head()
+HallOfFame %>% 
+  anti_join(Batting, by = "playerID") %>% head()
+
+
+```
+
+These 3 tables are connected with the same playerID key. There are playerIDs in Batting & People that are not in HallofFame. We will assume that these individuals they have all not been inducted into the HallofFame. Thus, we will join the 3 tables together and make a list of players who have hit 500 home runs or 3000, but have not been inducted into the Hall of Fame.
+
+```{r}
+
+Batting %>%
+  full_join(People, by = "playerID") %>%
+  full_join(HallOfFame, by = "playerID") %>%
+  filter(category == "Player") %>%
+  filter(inducted != "Y") %>%
+  filter(HR > 500 | H > 3000) %>%
+  select(nameFirst, nameLast, HR, H, inducted)
+
+```
+There are no players who hit > 500 home runs or >3000 hits that have not been inducted into the HallOfFame database.
+
+## Text Data
+>Question: How many speaking lines are there in Macbeth? Speaking lines are identified by a line that starts with two spaces, then a string of capital letters (possibly including spaces) indicating the character’s name, followed by a period.
+
+I will start by loading in the Macbeth file and parse the lines into separate rows.
+```{r}
+library(tidyverse)
+macbeth_url <- "http://www.gutenberg.org/cache/epub/1129/pg1129.txt"
+data(Macbeth_raw, package = "mdsr")
+
+#Parse lines into separate rows
+macbeth <- Macbeth_raw %>% 
+  stringi::stri_split_lines() %>%
+  pluck(1)
+length(macbeth)
+head(macbeth)
+```
+Next, I will create a regex pattern and detect the regex pattern using str_subset & str_detect. I will show both the patterns detected and the full lines that contain the detected patterns.
+```{r detect regex}
+pattern <- "^  [A-Z ]+[.]{1} "
+#show the regex pattern detected to check
+macbeth %>% str_subset(pattern) %>% str_extract(pattern) %>% head(10)
+#show the lines detected to check
+macbeth %>% str_subset(pattern) %>% head(10)
+```
+Now that I have verified that our regex pattern is working correctly, I will compute the total number of lines containing the pattern.
+```{r}
+macbeth %>% str_detect(pattern) %>% sum()
+```
+
+There are 644 speaking lines in Macbeth.
+
+Note: I included a forced space at the end of the regex pattern because there are two lines that fit the regex pattern but were *not* speaking lines. In the following code chunk, I displayed the two faulty lines using the regex pattern without a forced space at the end.
+```{r}
+pattern2 <- "^  [A-Z ]+[.]{1}"
+macbeth %>% str_subset(pattern2) %>% head(2)
+```
+>Question:  Find the 10 most popular boys’ names in 2017 that end in a vowel. Use the babynames::babynames table. (Hint: str_detect.)
+
+First I will load the babynames package.
+```{r}
+library(babynames)
+head(babynames::babynames)
+```
+We want only the names of boys in 2017, so we will filter for this.
+```{r}
+vowelboys <- babynames::babynames %>% 
+  filter(year == 2017 & sex == "M")
+head(vowelboys)
+```
+We will want a single vector for this.
+```{r}
+vowelboys2 <- vowelboys$name
+```
+
+Now, we will use a regex pattern to detect all the names that end with a vowel. We will use str_subset to first check if it is working correctly.
+```{r}
+regex <- "[a,e,i,o,u]$"
+vowelboys2 %>% str_subset(regex) %>% head()
+```
+Now that our regex pattern is working correctly, we will use str_detect to add a column to our dataset to indicate if the name ends with a vowel. Then, we will filter for only "TRUE" values, arrange the dataset by descending occurences (n column), and take the top 10 rows. This will give us the top 10 most popular boys names in 2017 that end in a vowel.
+```{r}
+top10vowelboys <-vowelboys %>% 
+  mutate(endVowel = name %>% str_detect(regex)) %>% 
+  filter(endVowel == "TRUE") %>% 
+  arrange(desc(n)) %>% 
+  head(10)
+```
+The top 10 most popular boys names ending with a vowel in 2017 are `r top10vowelboys$name`.

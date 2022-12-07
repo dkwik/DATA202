@@ -1,0 +1,260 @@
+---
+title: 'Homework 10: Predictive Modeling'
+author: "Daniel Kwik"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(parsnip)
+theme_set(theme_bw())
+options(dplyr.summarise.inform = FALSE) # silence a warning message
+```
+
+
+```{r utilities, echo=FALSE}
+add_predictions <- function(data, ...) {
+  purrr::imap_dfr(
+    rlang::dots_list(..., .named = TRUE),
+    function(model, model_name) {
+      model %>%
+        predict(data) %>%
+        bind_cols(data) %>%
+        mutate(model = !!model_name)
+    }
+  )
+}
+```
+
+## Getting Started
+
+### Load data
+
+```{r load-data, include=TRUE}
+daily_rides <- read_csv("data/day-hw10.csv", col_types = cols_only(
+  date = col_date(),
+  year = col_integer(),
+  workingday = col_character(),
+  temp = col_double(),
+  atemp = col_double(),
+  casual = col_double(),
+  registered = col_double()
+)) %>% mutate(across(c(workingday, year), as_factor))
+```
+
+
+### Exploratory Analytics
+```{r}
+ggplot(daily_rides, aes(date, casual, color = workingday)) +
+  geom_point()
+
+```
+
+
+### Train-test split
+```{r}
+train <- daily_rides %>% filter(year == 2011)
+test <- daily_rides %>% filter(year == 2012)
+nrow(train)
+nrow(test)
+```
+366 days makes sense because 2012 is a leap year.
+
+## Linear Regression using Temperature
+```{r}
+  model1 <- 
+    linear_reg(mode = "regression", engine = "lm") %>%
+    fit(formula = casual ~ temp, data = train)
+```
+
+
+### Look inside the model
+```{r}
+model1 %>% 
+  tidy() %>% 
+  select(term, estimate)
+```
+For every additional degree C, model1 predicts 36.27132 additional riders.
+```{r}
+train %>%
+  add_predictions(model1)
+```
+
+### Predictions
+```{r}
+train %>%
+  add_predictions(model1) %>%
+  ggplot(aes(date, casual, color = workingday))+
+  geom_point() +
+  geom_line(aes(y = .pred), color = 'maroon') 
+```
+The line is not straight because we made a linear regression to plot casual riders against temperature. The linear line will occur when we plot casual riders against temperature. In this case, we plotted predicted casual against date instead, so plotting the .pred variable will not product a linear line.
+
+### Residuals Histogram
+```{r}
+train %>% 
+  add_predictions(model1) %>% 
+  mutate(resid = casual - .pred) %>% 
+  ggplot(aes(x = resid))+
+  geom_histogram(binwidth = 100)+
+  geom_vline(xintercept = 0)+
+  facet_wrap(vars(workingday), scales = "free_y", dir = 'v')
+```
+
+### Observed by Predicted
+```{r}
+train_pred <- train %>% add_predictions(model1)
+
+ggplot(data = train_pred, aes(casual, .pred, color = workingday)) +
+  geom_point(alpha = 0.4)+
+  coord_obs_pred()+
+  geom_abline()
+  
+```
+The model predicts too high whenever there are points above the AB line (i.e .pred is higher than casual), and it predicts too low whenever there are points below the AB line (i.e .pred is lower than casual). In this case, the model predicts too high typically on workdays and it predicts too low typically on weekends.
+
+This probably occurs because we are fitting a single linear regression on the whole casual rider population without filtering by workingday. Since there are generally more casual riders in the weekends than the weekdays and this distinction is not accounted for in our modeling, it will fit the line in between the values of weekend and weekday. Thus, the linear regression line will likely be too low for weekends, and too high for weekdays.
+
+### Validate the model on the test set
+
+#### Predictions
+```{r}
+daily_rides %>%
+  add_predictions(model1) %>%
+  ggplot(aes(date, casual, color = workingday))+
+  geom_point() +
+  geom_line(aes(y = .pred), color = 'maroon') 
+```
+
+#### Residuals
+```{r}
+daily_rides %>% 
+  add_predictions(model1) %>% 
+  mutate(resid = casual - .pred) %>% 
+  ggplot(aes(x = resid))+
+  geom_histogram(binwidth = 100)+
+  geom_vline(xintercept = 0)+
+  facet_wrap(vars(year), scales = "free_y", dir = 'v')
+```
+
+
+#### Observed by Predicted
+```{r}
+daily_rides_pred <- daily_rides %>% add_predictions(model1)
+
+ggplot(data = daily_rides_pred, aes(casual, .pred, color = year)) +
+  geom_point(alpha = 0.4)+
+  coord_obs_pred()+
+  geom_abline()
+  
+```
+
+### Quantify errors
+```{r}
+daily_rides_pred %>% 
+  group_by(year) %>% 
+  mae(truth = casual, estimate = .pred) %>% 
+  select(year, mae = .estimate )
+```
+
+
+#### Summarize
+The model performed poorly on the test set because we did not account for the differences in the number of casual riders in weekends and weekdays.
+
+The test set performed slightly worse than the training set and it had a larger mean absolute error.
+
+We can see the trends of the prediction line in the plots but not in the errors table.
+
+We can easily observe the magnitude of the errors collectively in the errors table, but not in the plots.
+
+## Linear Regression using Temperature and Working Day
+
+```{r}
+recipe2 <-
+  recipe(casual ~ temp + workingday, data = train) %>%
+  step_dummy(workingday) %>%
+  step_interact(~ temp:starts_with("workingday"))
+
+model2 <- workflow() %>%
+  add_recipe(recipe2) %>%
+  add_model(linear_reg()) %>%
+  fit(train)
+```
+
+```{r}
+train %>%
+  filter(year == "2011") %>% 
+  add_predictions(model2) %>%
+  ggplot(aes(date, casual, color = workingday))+
+  geom_point() +
+  geom_line(aes(y = .pred)) 
+```
+```{r}
+ggplot(train, aes(temp, casual, color = workingday))+
+  geom_point()+
+    geom_line(
+    data = expand_grid(
+      workingday = levels(train$workingday),
+      temp = modelr::seq_range(train$temp, n = 100)
+    ) %>%
+      add_predictions(model2),
+    mapping = aes(x = temp, y = .pred, color = workingday))
+```
+```{r}
+#Quantify model2's performance
+
+daily_rides_pred2 <- daily_rides %>% add_predictions(model2)
+
+daily_rides_pred2 %>% 
+  group_by(year) %>% 
+  mae(truth = casual, estimate = .pred)
+  
+```
+
+## Decision Tree Regression
+```{r}
+model3<- fit(
+  decision_tree(mode = "regression"),
+  casual ~ temp + workingday,
+  data = train
+)
+
+model3 %>% 
+  extract_fit_engine() %>% 
+  rpart.plot::rpart.plot(roundint = FALSE, digits = 3, type = 4)
+```
+```{r}
+
+train %>%
+  filter(year == "2011") %>% 
+  add_predictions(model3) %>%
+  ggplot(aes(date, casual, color = workingday))+
+  geom_point() +
+  geom_line(aes(y = .pred)) 
+
+```
+```{r}
+performance <- daily_rides %>% 
+  add_predictions(model1, model2, model3) %>% 
+  group_by(model, year) %>% 
+  mae(truth = casual, estimate = .pred)
+performance
+
+ggplot(data = performance, aes(x = model, y = .estimate, fill = year))+
+  geom_bar(stat = "identity", position = position_dodge()) +
+  labs(y = "mae")
+  
+```
+
+## Wrap-up
+
+I found that the regression model has a lot higher precision than the decision tree model, which forcefully categorized data into only 7 buckets of possibilities. I prefer the linear regression model as the prediction line was better representative of the training data.
+
+The accuracy of these models on 2011 data are far better than on 2012 data, with smaller mean absolute errors, especially for model2 and model3. However, the performance of the models on 2012 data are more consistent, with less variation in the mae between models.
+
+The reason the 2011 models performed better was probably because we trained all 3 models on 2011 data since we split our training and test datasets by year. Thus, the test data in 2012 was unseen by the model and was naturally less accurate.

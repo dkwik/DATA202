@@ -1,0 +1,78 @@
+---
+title: "Guided Exercise 6 - Sad plots"
+author: "NAME"
+output: prettydoc::html_pretty
+---
+
+## Load packages and data
+
+```{r load-packages, message=FALSE}
+library(tidyverse) 
+```
+
+```{r load-data, message=FALSE}
+staff <- read_csv("data/instructional-staff.csv")
+fisheries <- read_csv("data/fisheries.csv")
+```
+
+
+## Exercise 1
+
+
+
+## Exercise 2
+
+
+
+## Exercise 3
+```{r}
+staff <- read_csv("data/instructional-staff.csv")
+
+staff_long <- pivot_longer(staff, 2:12, names_to = "year", values_to = "percentage")
+
+
+ggplot(staff_long, aes(x= percentage, y =  faculty_type, fill = year)) +
+  geom_col(position = "dodge") +
+  labs(x = "% of faculty", y ="",  title = "Instructional staff employment trends, 1975-2011") +
+  scale_fill_viridis_d()
+         
+```
+
+## Exercise 4
+
+```{r}
+
+staff_long %>%
+  ggplot(aes(x = percentage, y = factor(year), fill = faculty_type)) +
+  geom_col() +
+  scale_fill_viridis_d() +
+  labs(x = "% of faculty", y = "Year", fill = "",
+       title = "Instructional staff employment trends, 1975-2011",
+       caption = "Source: AAUP") +
+  theme_minimal()
+
+
+
+
+```
+
+## Exercise 5
+```{r}
+
+ggplot(staff_long, aes(x = as.numeric(year), y = percentage, color = faculty_type, shape = faculty_type))+
+  geom_line() +
+  geom_point() +
+  labs(x = "year", y = "% of faculty", shape = "", color = "") +
+  theme_minimal()
+       
+```
+##Exercise 6
+```{r}
+staff_long
+staff_long %>% 
+  pivot_wider(, names_from = year, values_from = percentage) %>% 
+  filter(col_names == `..1`)
+  
+
+```
+

@@ -1,0 +1,119 @@
+---
+title: "Guided Exercise 12 - Databases"
+output: 
+  html_document: default
+---
+
+---
+title: "Guided Exercise 12 - Databases"
+output: 
+  tufte::tufte_html:
+    css: ../ex.css
+    tufte_variant: "envisioned"
+    highlight: pygments
+link-citations: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+library(tidyverse)
+theme_set(theme_bw())
+options(scipen = 5) # encourage metrics to print in fixed-point notation
+options(dplyr.summarise.inform = FALSE) # silence a warning message
+```
+
+```{r}
+library(tidyverse)
+library(mdsr)
+library(RMySQL)
+db <- DBI::dbConnect(RMariaDB::MariaDB(), dbname = "airlines", host = "mdsr.cdc7tgkkqd0n.us-east-1.rds.amazonaws.com", 
+    user = "mdsr_public", password = "ImhsmflMDSwR")
+```
+
+And we'll get references to two specific tables we'll be working with.
+
+```{r}
+flights <- tbl(db, "flights")
+carriers <- tbl(db, "carriers")
+```
+
+```{r}
+flights %>% 
+  filter(year == 2016) %>% 
+  show_query()
+```
+
+```{r}
+nrow(flights)
+```
+
+
+##Exercise 1
+WHERE corresponds to filter
+
+```{r}
+flights %>% 
+  filter(year == 2016, month == 11, distance > 1000) %>% 
+  summarize(
+    n = n(),
+    mean_dep_delay = mean(dep_delay, na.rm = TRUE)
+  ) %>% show_query
+```
+
+
+##Exercise 2
+It uses COUNT, AVG when selecting the columns.
+
+##Exercise 3
+```{r}
+
+flights %>% 
+  summarize(minyear = min(year), maxyear = max(year) )
+```
+
+##Exercise 4
+```{r}
+
+flights %>% 
+  filter(dest == 'JFK', year == 2016, month == 11) %>% 
+  summarize(n = n())
+```
+
+
+##Exercise 5
+```{r}
+
+ex5 <- flights %>% 
+  filter(dest == 'JFK', year == 2016, month == 11) %>% 
+  group_by(carrier) %>% 
+  summarize(n = n()) %>% 
+  arrange(desc(n))
+ex5
+```
+##Exercise 6
+```{r}
+ex5 %>% show_query
+```
+SQL expresses arrange by using ORDER BY
+
+##Exercise 7
+```{r}
+sum_flights <- flights %>% 
+  filter(dest == 'JFK', year == 2016, month == 11) %>% 
+  group_by(carrier) %>% 
+  summarize(n = n(), frac_ontime = sum(arr_delay<= 15)/n()) %>% 
+  arrange(desc(n))
+sum_flights
+```
+
+##Exercise 8
+```{r}
+sum_flights %>% 
+  inner_join(carriers, sum_flights, by = 'carrier') %>% 
+  arrange(desc(n))
+
+```
+```{r}
+carriers
+```
+

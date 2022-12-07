@@ -1,0 +1,124 @@
+---
+title: "Guided Exercise 10 - Validation"
+author: "Daniel Kwik"
+output: html_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+library(tidyverse)
+library(tidymodels)
+library(rpart.plot)
+theme_set(theme_bw())
+options(scipen = 5) # encourage metrics to print in fixed-point notation
+options(dplyr.summarise.inform = FALSE) # silence a warning message
+```
+
+
+```{r load-and-subset-data}
+# Get the data from the "modeldata" package, which comes with tidymodels.
+data(ames, package = "modeldata")
+ames_all <- ames %>% 
+  filter(Gr_Liv_Area < 4000, Sale_Condition == "Normal") %>% 
+  mutate(Sale_Price = Sale_Price / 1000)
+rm(ames)
+```
+
+
+```{r train-test-split}
+set.seed(10) # Seed the random number generator
+ames_split <- initial_split(ames_all, prop = 2 / 3) # Split our data randomly
+ames_train <- training(ames_split)
+ames_test <- testing(ames_split)
+```
+
+
+```{r}
+metrics <- yardstick::metric_set(mae, mape, rsq_trad)
+```
+
+
+```{r}
+ggplot(ames_train, aes(x = Longitude, y = Latitude, color = Sale_Price)) +
+  geom_point(size = .5) +
+  scale_color_viridis_c() +
+  coord_equal()
+```
+
+
+```{r}
+set.seed(0)
+model1 <-
+  decision_tree(mode = "regression", tree_depth = 2) %>% 
+  fit(Sale_Price ~ Latitude + Longitude, data = ames_train)
+
+model1 %>% 
+  extract_fit_engine() %>% 
+  rpart.plot(roundint = FALSE, digits = 5, type = 4)
+```
+```{r}
+
+lat_long_grid <- expand_grid(
+  Latitude  = modelr::seq_range(ames_train$Latitude,  n = 200, expand = .05),
+  Longitude = modelr::seq_range(ames_train$Longitude, n = 200, expand = .05),
+)
+
+augment(model1, new_data = lat_long_grid)
+
+#Function to display visalizatoion
+show_latlong_model <- function(dataset, model,
+                               model_name = deparse(substitute(model))) {
+  ggplot(dataset, aes(x = Longitude, y = Latitude)) +
+    geom_raster(
+      data = augment(model, lat_long_grid),
+      mapping = aes(fill = .pred)
+    ) +
+    # Draw two point layers, so each point gets a little black outline.
+    geom_point(color = "black", size = .75) +
+    geom_point(aes(color = Sale_Price), size = .5) +
+    scale_color_viridis_c(aesthetics = c("color", "fill"),
+                          limits = range(ames_train$Sale_Price)) +
+    coord_equal() +
+    labs(title = model_name)
+}
+
+
+show_latlong_model(ames_train, model1)
+
+```
+
+```{r}
+augment(model1, new_data = ames_train) %>% 
+  mutate(resid = Sale_Price - .pred) %>% 
+  ggplot(aes(x=resid))+
+  geom_histogram(binwidth = 10)
+
+
+##find mean absolute error
+augment(model1, ames_train) %>% 
+  mae(truth = Sale_Price, estimate = .pred)
+```
+```{r}
+model2 <-
+  decision_tree(mode = "regression", tree_depth = 30) %>%
+  fit(Sale_Price ~ Latitude + Longitude, data = ames_train)
+
+model2 %>%
+  extract_fit_engine() %>%
+  rpart.plot(roundint = FALSE, digits = 4, type = 4)
+
+show_latlong_model(ames_train, model2)
+
+#plot MAE histogram
+augment(model2, ames_train) %>% 
+  mutate(resid = Sale_Price - .pred) %>% 
+  ggplot(aes(x=resid)) +
+  geom_histogram() +
+  coord_cartesian(xlim = c(min(resid), max(resid)))
+
+```
+```{r}
+min(resid)
+
+```
+

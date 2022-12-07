@@ -1,0 +1,113 @@
+---
+title: "Exercise 05 - Visualizing Spatial Data"
+author: "Daniel Kwik"
+output:
+  prettydoc::html_pretty
+---
+
+### Load packages and data
+
+```{r load-packages, message=FALSE}
+library(tidyverse) 
+```
+
+```{r load-data, message=FALSE}
+dennys <- read_rds("data/dennys.rds")
+laquinta <- read_rds("data/laquinta.rds")
+states <- read_csv("data/states.csv", col_types = cols(
+  name = col_character(),
+  abbreviation = col_character(),
+  area = col_double()
+))
+```
+
+### Exercise 1
+
+```{r}
+glimpse(dennys)
+
+```
+
+The dimensions are `r nrow(dennys)` rows and `r ncol(dennys)` columns.
+
+
+### Exercise 2
+```{r}
+glimpse(laquinta)
+```
+There are 999 rows and 6 columns. Each row represents a single address, including the variables city, state, zip code, and coordinates.
+
+
+### Exercise 3
+```{r}
+dennys %>% 
+  filter(!(state%in% states$abbreviation))
+```
+There are no Denny's locations outside the US.
+
+### Exercise 4
+
+```{r}
+dennys <- dennys %>% 
+mutate( country = "United States")
+```
+
+
+### Exercise 5
+
+```{r}
+laquinta %>% 
+  filter(!(state %in% states$abbreviation))
+```
+
+### Exercise 6
+```{r}
+laquinta <- laquinta %>%
+  mutate(country = case_when(
+    state %in% state.abb     ~ "United States",
+    state %in% c("ON", "BC") ~ "Canada",
+    state == "ANT"           ~ "Colombia",
+    state %in% c("AG", "QR", "CH", "NL", "VE", "PU", "SL") ~ "Mexico",
+    state == "FM" ~ "Honduras"))
+
+laquinta <- laquinta %>%
+  filter(country == "United States")
+
+```
+
+
+### Exercise 7
+```{r}
+dennys %>% 
+  group_by(state) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count))
+dennys
+
+```
+```{r}
+
+laquinta %>% 
+  group_by(state) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count))
+laquinta
+```
+
+
+### Exercise 8
+```{r}
+dennys %>% 
+  group_by(state) %>% 
+  summarize(count=n()) %>% 
+  arrange(desc(count)) %>% 
+  left_join(states, by = c("state" = "abbreviation")) %>% 
+  mutate(count_by_area = count / area)
+dennys
+```
+
+### Exercise 9
+
+### Exercise 10
+
+### Exercise 11

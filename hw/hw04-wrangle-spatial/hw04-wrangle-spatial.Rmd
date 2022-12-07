@@ -1,0 +1,170 @@
+---
+title: "Homework 04 - Wrangling Spatial Data"
+author: "Daniel Kwik"
+output:
+  prettydoc::html_pretty
+#knit: pagedown::chrome_print
+---
+
+### Load packages and data
+
+```{r load-packages, message=FALSE}
+library(tidyverse) 
+```
+
+```{r load-data, message=FALSE}
+dennys <- read_rds("data/dennys.rds")
+laquinta <- read_rds("data/laquinta.rds")
+states <- read_csv("data/states.csv", col_types = cols(
+  name = col_character(),
+  abbreviation = col_character(),
+  area = col_double()
+))
+```
+
+### Exercise 1
+
+```{r}
+
+dn_ak <- dennys %>%
+  filter(state == "AK")
+nrow(dn_ak)
+```
+There are 3 Denny's locations in Alaska
+
+
+### Exercise 2
+
+```{r}
+lq_ak <- laquinta %>%
+  filter(state == "AK")
+nrow(lq_ak)
+```
+There are 2 Laquinta locations in Alaska.
+
+### Exercise 3
+
+There are 6 possible combinations between Denny's and Laquinta locations.
+
+### Exercise 4
+
+```{r}
+dn_lq_ak <- full_join(dn_ak, lq_ak, by = "state", suffix = c("_dn", "_lq"))
+dn_lq_ak
+```
+There are 6 observations in this dataframe.
+
+### Exercise 5
+
+```{r}
+
+# Implementation from dsbox
+haversine <- function(long1, lat1, long2, lat2) {
+  # convert to radians
+  long1 = long1 * pi / 180
+  lat1  = lat1  * pi / 180
+  long2 = long2 * pi / 180
+  lat2  = lat2  * pi / 180
+  
+  # Earth mean radius in km (WGS84 ellipsoid)
+  R = 6371.009
+  
+  a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((long2 - long1)/2)^2
+  d = R * 2 * asin(sqrt(a))
+  # Return the distance in km
+  d
+}
+
+
+dn_lq_ak <- dn_lq_ak %>% 
+  mutate(distance = haversine(longitude_dn, latitude_dn, longitude_lq, latitude_lq))
+dn_lq_ak
+```
+
+
+### Exercise 6
+```{r}
+laquinta_to_dennys <- dn_lq_ak %>% 
+  group_by(address_lq) %>% 
+  summarize(count = n(), dist_to_nearest = min(distance))
+```
+
+
+### Exercise 7
+There are Denny's locations 2.03km away from the Minnesota Dr. location, and a Denny's location 5.20km away from the Dale Rd location.
+
+### Exercise 8
+
+```{r}
+compute_closest_dennys <- function(the_state) {
+  dn_state <- dennys %>% 
+    filter(state == the_state)
+  lq_state <- laquinta %>% 
+    filter(state == the_state)
+  
+  # join to get all possible pairings
+  dist_to_closest <- full_join(dn_state, lq_state, by = "state", suffix = c("_dn", "_lq")) %>% 
+    mutate(distance = haversine(longitude_dn, latitude_dn, longitude_lq, latitude_lq)) %>% 
+  # compute distances
+    group_by(address_lq) %>% 
+  # compute distance to closest Denny's for each La Quinta location.
+    summarize(dist_to_nearest = (min(round(distance, 2)))) %>%
+    arrange(dist_to_nearest)
+
+  return(dist_to_closest)
+}
+```
+
+
+### Exercise 9
+
+```{r}
+NC<-compute_closest_dennys("NC")
+NC
+
+compute_closest_dennys("NC") %>% 
+  summarize(min(dist_to_nearest), round(median(dist_to_nearest), 2))
+
+ggplot(NC)+
+  geom_boxplot(aes(y = dist_to_nearest))
+```
+
+
+### Exercise 10
+```{r}
+TX <- compute_closest_dennys("TX")
+TX
+
+compute_closest_dennys("TX") %>% 
+  summarize(min(dist_to_nearest), round(median(dist_to_nearest), 2))
+
+ggplot(TX)+
+  geom_boxplot(aes(y = dist_to_nearest))
+```
+
+
+### Exercise 11
+```{r}
+MI <- compute_closest_dennys("MI")
+MI
+
+compute_closest_dennys("MI") %>% 
+  summarize(min(dist_to_nearest), round(median(dist_to_nearest), 2))
+
+ggplot(MI)+
+  geom_boxplot(aes(y = dist_to_nearest))
+```
+
+
+## Wrap-Up
+Among the states I examined (NC, TX, MI), Mitch Hedberg's joke is most likely to hold true in Texas. This is because the min and median distances to the nearest dennys are lower than that in NC and MI.
+
+### GitHub permalink
+https://github.com/Calvin-DS202-21FA/portfolio-dkwik/blob/69c3e3b915df16be565cd7885314b442056c19d1/hw/hw04-wrangle-spatial/hw04-wrangle-spatial.Rmd
+
+### Partners
+nil
+
+### Reflections
+-Assignment was quite straightforward and was helpful. It took me about 1.5 hours to complete and I didn't get stuck in too many places. I needed to learn how to use the function as well as how to round numbers in this exercise. In exercise 9's sample results in the assignment page, I did not know how to get the city_lq column to show on the dataframe, but it did not seem that important either. Overall, I thought the assignment was clear and instructions were ample.
+

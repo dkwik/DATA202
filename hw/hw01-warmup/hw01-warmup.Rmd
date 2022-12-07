@@ -1,0 +1,66 @@
+---
+title: "Homework 1: Warmup"
+author: "Daniel Kwik"
+output:
+  prettydoc::html_pretty
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load Packages
+
+```{r packages, message=FALSE}
+library(tidyverse)
+library(ggplot2)
+```
+
+# Read Data
+
+```{r read-data, message=FALSE}
+daily_rides <- read_csv("data/day_simple.csv")
+```
+
+# Exercise 1
+```{r}
+daily_rides
+```
+There are 731 rows, and each row represents the ride sharing data for a specific date. It describes the day of the week, whether it was a weekend or workday, and how many total rides were made during that day.
+
+# Exercise 2
+
+The following plot shows the total number of rides each day.
+
+```{r rides-by-day}
+ggplot(data = daily_rides, mapping = aes(x=date, y=total_rides))+
+    geom_point()+
+    geom_smooth()+
+    labs(x="Date (month)", y="Number of Rides")
+```
+
+# Exercise 3
+
+The following plot shows the total number of rides for weekdays vs weekends.
+```{r}
+ggplot(data = daily_rides, mapping = aes(x=date, y=total_rides, color=workingday))+
+  geom_point()+
+  geom_smooth()+
+  labs(x="Date (month)", y="Number of Rides")
+```
+
+
+# Exercise 4
+
+As we can see from the graph, the number of rides during the weekends (red) and workday(green) follow the same general pattern. However, the trendline of the workday is generally higher than the weekend by roughly 1500 rides. This means that people ride bikes more often in the weekends than the weekdays. Thus, we might guess that Capital Bikeshare riders do not just use the bikes to commute from home to work, but for leisure/other weekend activities as well. The use of the bikes might be more general rather than only specifically for work.
+
+
+
+
+
+
+
+
+
+
+

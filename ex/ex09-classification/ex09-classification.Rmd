@@ -1,0 +1,88 @@
+---
+title: "Guided Exercise 9 - Classification"
+author: "Daniel Kwik"
+output:
+  html_document:
+    df_print: paged
+geometry: margin=.5in
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = "")
+library(tidyverse)
+theme_set(theme_bw())
+```
+
+## Setup
+
+Construct the set of people, some who will repay and others who will not.
+
+```{r}
+# "Deterministic normal": we expect n * pnorm(x, mu, sd) of n points to be below x.
+make_group <- function(n, mean, sd, ...) {
+  tibble(score = 0:100) %>% 
+    mutate(n = floor(n * pnorm(score, mean, sd))) %>% 
+    mutate(delta = c(diff(n), 0)) %>% 
+    uncount(delta) %>% 
+    select(score) %>% 
+    mutate(...)
+}
+
+people <- bind_rows(
+  make_group(150, 60, 10, repay = TRUE),
+  make_group(150, 40, 10, repay = FALSE)
+)
+people
+```
+
+Make a dotplot of the people.
+
+```{r}
+ggplot(people, aes(x = score, fill = repay)) +
+  geom_dotplot(binwidth = 5, dotsize = .5,
+               binpositions = "all", method = "histodot", stackgroups = TRUE)
+```
+##Exercise 1
+```{r}
+
+threshold <- 64
+decisions <- 
+  people %>% 
+  mutate(granted = score >= threshold)
+
+decisions
+```
+
+##Exercise 2
+```{r}
+num_app <- nrow(decisions)
+total_granted <- nrow(decisions %>% filter(repay == TRUE))
+
+decisions %>% 
+  summarize(positive = sum(granted)/num_app)
+
+decisions %>% 
+  filter(repay == TRUE) %>% 
+  summarize(true_positive = sum(granted)/total_granted)
+
+```
+
+##Exercise 3
+true negative - didn't get a loan and didn't pay
+false positive - got a loan, but didn't pay
+```{r}
+true_negative <- decisions %>% 
+  filter(granted == FALSE, repay == FALSE)
+false_positive <- decisions %>% 
+  filter(granted == TRUE, repay == FALSE)
+true_positive <- decisions %>% 
+  filter(granted == TRUE, repay == TRUE)
+false_negative <- decisions %>% 
+  filter(granted == FALSE, repay == FALSE)
+
+specificity = nrow(true_negative)/(nrow(true_negative) + nrow(false_positive))
+
+sensitivity = nrow(true_positive)/(nrow(true_positive) + nrow(false_negative))
+
+```
+

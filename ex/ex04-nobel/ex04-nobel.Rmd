@@ -1,0 +1,96 @@
+---
+title: "Exercise 04 - Nobel laureates"
+author: "Daniel Kwik"
+output:
+  prettydoc::html_pretty
+---
+
+### Load packages and data
+
+```{r load-packages, message=FALSE}
+library(tidyverse) 
+library(glue)
+```
+
+```{r load-data, message=FALSE}
+nobel <- read_csv("data/nobel.csv")
+
+```
+
+### Exercise 1
+
+```{r}
+
+```
+
+
+### Exercise 2
+
+```{r}
+nobel_living <- nobel %>% 
+  filter(!is.na(country),
+         gender != "org",
+         is.na(died_date)
+         )
+nobel_living
+```
+
+
+### Exercise 3
+
+```{r}
+nobel_living_science<-nobel_living %>% 
+  mutate(
+    country_us = if_else(country == "USA", "USA", "Other") 
+    ) %>%
+  filter(category %in% c("Physics", "Medicine", "Chemistry", "Economics"))
+
+
+ggplot(data = nobel_living_science, mapping = aes(y = country_us)) +
+  geom_bar() +
+  facet_wrap(vars(category))
+  labs(x = "Number of Nobel laureates",
+       y = "Country they lived in when winning")
+  
+
+```
+
+
+### Exercise 4
+
+*don't add code here; instead, go back and edit the pipeline in Exercise 2*
+
+```{r}
+nobel_living <- nobel %>% 
+  filter(!is.na(country),
+         gender != "org",
+         is.na(died_date)
+         ) %>% 
+  mutate(
+    born_country_us = if_else(born_country == "USA", "USA", "Other")
+  )
+nobel_living
+```
+
+
+### Exercise 5
+
+```{r}
+nobel_living_science<-nobel_living %>% 
+  mutate(
+    country_us = if_else(country == "USA", "USA", "Other"),
+     if_else(born_country == "USA", "USA", "Other")
+    ) %>%
+  filter(category %in% c("Physics", "Medicine", "Chemistry", "Economics"))
+
+ggplot(nobel_living_science, aes(y=country_us, fill = country_us))+
+  geom_bar() +
+  facet_wrap(vars(category))
+```
+
+
+### Exercise 6
+
+
+### Exercise 7 (optional)
+

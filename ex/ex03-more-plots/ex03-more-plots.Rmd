@@ -1,0 +1,88 @@
+---
+title: "Exercise 3: More Plotting"
+author: "Daniel Kwik"
+output:
+  prettydoc::html_pretty
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+library(scales)
+library(gapminder)
+
+# Put the data in the Environment
+gapminder <- gapminder::gapminder
+
+# Extract the data for the latest year in the dataset, for plots that don't involve year.
+gapminder_latest <- filter(gapminder, year == 2007)
+```
+
+
+## Styling and labeling plots
+
+```{r Life Expectancy vs Time graph}
+gapminder %>% 
+  filter(country == "United States") %>% 
+  ggplot(aes(x = year, y = lifeExp)) +
+    geom_line(color = 'red') +
+  labs( x = "Year", y = "Life Expectancy", title = "Change in Life Expectancy Over Time")
+  
+```
+
+## Mapping vs Faceting
+
+```{r Mapped country to color}
+countries <- c(
+  "China", "India", "United States",
+  "Indonesia", "Brazil", "Pakistan",
+  "Bangladesh", "Nigeria", "Japan")
+
+gapminder %>% 
+  filter(country %in% countries) %>% 
+  ggplot(aes(x = year, y = lifeExp, color = country)) +
+    geom_line()
+```
+```{r Faceted by country}
+countries <- c(
+  "China", "India", "United States",
+  "Indonesia", "Brazil", "Pakistan",
+  "Bangladesh", "Nigeria", "Japan")
+
+gapminder %>% 
+  filter(country %in% countries) %>% 
+  ggplot(aes(x = year, y = lifeExp, color = country)) +
+    geom_point()+
+  facet_wrap(vars(country), scales = "free_y")
+```
+
+
+## Univariate analysis - Continuous
+```{r}
+ggplot(data = gapminder, mapping = aes(x=log10(pop)))+
+geom_histogram()
+
+```
+```{r}
+ggplot(data = gapminder, mapping = aes(x=log10(pop)))+
+geom_boxplot()
+
+```
+
+## Univariate Analysis - Categorical
+
+
+## Bivariate: Relationship between numerical and categorical
+
+
+## Ridge Plots!
+
+
+```{r}
+library(ggridges)
+ggplot(gapminder_latest, aes(x = lifeExp, y = continent)) +
+  geom_density_ridges(alpha = .5)
+```
+
+
+## Is "year" discrete?
+
